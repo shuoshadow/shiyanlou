@@ -21,7 +21,7 @@ class Args(object):
         userdatafile = self.args[d_index+1]
         o_index = self.args.index('-o')
         gongzicsv = self.args[o_index+1]
-        for filename in configfile,userdatafile:
+        for filename in configfile,userdatafile,gongzicsv:
             if not os.path.exists(filename):
                 print('Param Error')
                 sys.exit(1)
@@ -75,14 +75,14 @@ class UserData(object):
         gzlist = []
         for user in userdata:
             userid = user[0]
-            userwages = user[1]
+            userwages = int(user[1])
             jishu = userwages
             if jishu < JiShuL:
                 jishu = JiShuL
             if jishu > JiShuH:
                 jishu = JiShuH
             shebao = jishu * sbh
-            geshui = self.geshui(jishu, shebao)
+            geshui = self.geshui(userwages, shebao)
             afwages = userwages - shebao - geshui
             afwages = format(afwages, ".2f")
             geshui = format(geshui, ".2f")
