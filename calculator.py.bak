@@ -68,12 +68,16 @@ class UserData(object):
                     print(e)
                     sys.exit(1)
                 gz = (gonghao,gongzi)
+                print('Put into queue1' + str(gz))
                 queue1.put(gz)
 
     def calculator(self, sbh, JiShuL, JiShuH, queue1, queue2):
         while True:
-            if not queue1.empty():
-                user = queue1.get(True)
+            import queue
+            try:
+            #if not queue1.empty():
+                user = queue1.get()
+                print('Get from queue1' + str(user))
                 gzlist = []
                 userid = user[0]
                 userwages = int(user[1])
@@ -90,21 +94,25 @@ class UserData(object):
                 shebao = format(shebao, ".2f")
                 gzinfo = (userid, userwages, shebao, geshui, afwages)
                 gzlist.append(gzinfo)
+                print('Put into queue2' + str(gzlist))
                 queue2.put(gzlist)
-            else:
-                break
+            except queue.Empty:
+                print('queue1 is empty, continue...')
+                continue
 
     def export(self, gongzicsv, queue2):
         while True:
-            if not queue2.empty():
-                #gzlist = queue2.get(False)
-                gzinfo = queue2.get(True)
+            import queue
+            try:
+                gzinfo = queue2.get(timeout=1)
+                gzinfo = gzinfo[0]
+                print('Get from queue2' + str(gzinfo))
                 with open(gongzicsv, 'a') as file:
                     writer = csv.writer(file, dialect='excel')
-                    #for line in gzlist:
-                    writer.writerow(gzinfo[0])
-            else:
-                break
+                    writer.writerow(gzinfo)
+            except queue.Empty:
+                print('queue2 is empty, continue...')
+                continue
 
     def geshui(self, wages, shebao):
         b_wages = wages - shebao - 3500
