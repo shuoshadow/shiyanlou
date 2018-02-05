@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import csv
+
+from multiprocessing import Process, Queue, Lock
+
+class Args(object):
+    def __init__(self):
+        self.args = sys.argv[1:]
+        if len(sys.argv) != 7:
+            print('Param1 Error')
+            sys.exit(1)
+        if not '-c' in sys.argv or not '-d' in sys.argv or not '-o' in sys.argv:
+            print('Param2 Error')
+            sys.exit(1)
+
+    def get_args(self):
+        c_index = self.args.index('-c')
+        configfile = self.args[c_index+1]
+        d_index = self.args.index('-d')
+        userdatafile = self.args[d_index+1]
+        o_index = self.args.index('-o')
+        gongzicsv = self.args[o_index+1]
+        for filename in configfile,userdatafile,gongzicsv:
+            if not os.path.exists(filename):
+                print('Param Error')
+                sys.exit(1)
+        return configfile,userdatafile,gongzicsv
+
+
+class Config(Args):
+
+    def _read_config(self):
+        configfile = self.get_args()[0]
+        config = {}
+        with open(configfile) as file:
+            for line in file:
+                try:
+                    sbname = line.split('=')[0].strip()
+                    sbvalue = line.split('=')[1].strip()
+                    config[sbname] = sbvalue
+                except Exception as e:
+                    print(e)
+                    sys.exit(1)
+        return config
+    def get_config(self, sbname):
+        config_data = self._read_config()[sbname]
+        config_data = float(config_data)
+        return config_data 
+
+
+class UserData(Config):
+
+    def read_users_data(self, queue1):
+        userdatafile = self.get_args()[1]
+        #userdata = []
+        with open(userdatafile) as file:
+            for line in file:
+                try:
+                    gonghao = line.split(',')[0]            
+                    gongzi = line.split(',')[1]
+                    gongzi = float(gongzi)
+                except Exception as e:
+                    print(e)
+                    sys.exit(1)
+                gz = (gonghao,gongzi)
+                print('Put into queue1' + str(gz))
+                queue1.put(gz)
+
+    def calculator(self, queue1, queue2):
+        sbh = 0
+        for configName in ['YangLao', 'YiLiao', 'ShiYe', 'GongShang', 'ShengYu']:
+            sblv = self.get_config(configName)
+            sbh = sbh + sblv
+        JiShuL = self.get_config('JiShuL')
+        JiShuH = self.get_config('JiShuH')
+        while True:
+            import queue
+            try:
+                user = queue1.get(timeout=1)
+                print('Get from queue1' + str(user))
+                gzlist = []
+                userid = user[0]
+                userwages = int(user[1])
+                jishu = userwages
+                if jishu < JiShuL:
+                    jishu = JiShuL
+                if jishu > JiShuH:
+                    jishu = JiShuH
+                print(jishu, sbh)
+                shebao = jishu * sbh
+                geshui = self.geshui(userwages, shebao)
+                afwages = userwages - shebao - geshui
+                afwages = format(afwages, ".2f")
+                geshui = format(geshui, ".2f")
+                shebao = format(shebao, ".2f")
+                gzinfo = (userid, userwages, shebao, geshui, afwages)
+                gzlist.append(gzinfo)
+                print('Put into queue2' + str(gzlist))
+                queue2.put(gzlist)
+            except queue.Empty:
+                print('queue1 is empty, continue...')
+                continue
+
+    def export(self, queue2):
+        gongzicsv = self.get_args()[2]
+        while True:
+            import queue
+            try:
+                gzinfo = queue2.get(timeout=1)
+                gzinfo = gzinfo[0]
+                print('Get from queue2' + str(gzinfo))
+                with open(gongzicsv, 'a') as file:
+                    writer = csv.writer(file, dialect='excel')
+                    writer.writerow(gzinfo)
+            except queue.Empty:
+                print('queue2 is empty, continue...')
+                continue
+
+    def geshui(self, wages, shebao):
+        b_wages = wages - shebao - 3500
+        if b_wages <= 0:
+            taxes = 0
+        elif b_wages > 0 and b_wages <= 1500:
+            taxes = b_wages * 0.03 - 0
+        elif b_wages > 1500 and b_wages <= 4500:
+            taxes = b_wages * 0.1 - 105
+        elif b_wages > 4500 and b_wages <= 9000:
+            taxes = b_wages * 0.2 - 555
+        elif b_wages > 9000 and b_wages <= 35000:
+            taxes = b_wages * 0.25 - 1005
+        elif b_wages > 35000 and b_wages <= 55000:
+            taxes = b_wages * 0.3 - 2755
+        elif b_wages > 55000 and b_wages <= 80000:
+            taxes = b_wages * 0.35 - 5505
+        elif b_wages > 80000:
+            taxes = b_wages * 0.45 - 13505
+        return taxes
+
+
+if __name__ == '__main__':
+    queue1 = Queue()
+    queue2 = Queue()
+    #args = Args()
+    #configfile,userdatafile,gongzicsv = args.get_args()
+    #config = Config(configfile)
+    userdata = UserData()
+    #JiShuL = config.get_config('JiShuL')
+    #JiShuH = config.get_config('JiShuH')
+    #YangLao = config.get_config('YangLao')
+    #YiLiao = config.get_config('YiLiao')
+    #ShiYe = config.get_config('ShiYe')
+    #GongShang = config.get_config('GongShang')
+    #ShengYu = config.get_config('ShengYu')
+    #GongJiJin = config.get_config('GongJiJin')
+    #sbh = YangLao + YiLiao + ShiYe + GongShang + ShengYu + GongJiJin
+    p1 = Process(target=userdata.read_users_data, args=(queue1,))
+    p1.start()
+    p2 = Process(target=userdata.calculator, args=(queue1, queue2))
+    p2.start()
+    p3 = Process(target=userdata.export, args=(queue2,))
+    p3.start()
