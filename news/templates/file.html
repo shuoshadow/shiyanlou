@@ -1,0 +1,7 @@
+{% for k,v in fdict.items() %}
+    {% if k == 'title' %}
+    <h2>{{ k }}:{{ v }}</h2>
+    {% else %}
+    <p>{{ k }}:{{ v }}</p>
+    {% endif %}
+{% endfor %}
