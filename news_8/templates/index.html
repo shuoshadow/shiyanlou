@@ -1,7 +1,9 @@
 <h1>baiti</h1>
 <div>
-    {% for n,v in filedict.items() %}
-    <li><a href="/files/{{ n }}">{{ v }}</a></li>
+    {% for n,v in mdict.items() %}
+        {% for k,l in v.items() %}
+            <li><a href="/files/{{ n }}">{{ k }}:{{ l }}</a></li>
+        {%  endfor %}
     {% endfor %}
 </div>
 

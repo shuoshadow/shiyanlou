@@ -83,14 +83,20 @@ def not_found(error):
     return render_template('404.html'), 404
 
 @app.route('/')
+@app.route('/index')
 def index():
     files = File.query.all()
-    filedict = {}
+    mdict = {}
     for file in files:
+        filedict = {}
         id = file.id
         title = file.title
-        filedict[id] = title
-    return render_template('index.html', filedict=filedict)
+        tags = mdb.zixun.find_one({'title': title}, {'tags':1, '_id':0})
+        tag_list = tags['tags']
+        filedict[title] = tag_list
+        mdict[id] = filedict
+        print(mdict)
+    return render_template('index.html', mdict=mdict)
 
 @app.route('/files/<file_id>')
 def file(file_id):
